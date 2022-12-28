@@ -103,7 +103,7 @@ var NtpTimeSync = /** @class */ (function () {
             if (Array.isArray(options[key])) {
                 return [key, options[key]];
             }
-            var isObject = typeof options[key] === "object" && options[key] !== null && options[key] instanceof Date;
+            var isObject = typeof options[key] === "object" && options[key] !== null && !(options[key] instanceof Date);
             if (isObject) {
                 return [key, _this.recursiveResolveOptions(options[key], defaults[key])];
             }
