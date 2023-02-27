@@ -60,6 +60,10 @@ exports.NtpTimeSyncDefaultOptions = {
     sampleCount: 8,
     // amount of time in milliseconds to wait for an NTP response
     replyTimeout: 3000,
+    //False for default callback
+    errorCallback: false,
+    // throw Exceptions
+    launchExceptions: true,
     // defaults as of RFC5905
     ntpDefaults: {
         port: 123,
@@ -169,7 +173,11 @@ var NtpTimeSync = /** @class */ (function () {
                         _a.label = 4;
                     case 4:
                         if (ntpResults.length === 0) {
-                            throw new Error("Connection error: Unable to get any NTP response after " + retry + " retries");
+                            if (this.options.errorCallback) {
+                                this.options.errorCallback("Connection error: Unable to get any NTP response after " + retry + " retries");
+                            }
+                            if (this.options.launchExceptions)
+                                throw new Error("Connection error: Unable to get any NTP response after " + retry + " retries");
                         }
                         samples = [];
                         ntpResults.forEach(function (data) {
@@ -381,6 +389,9 @@ var NtpTimeSync = /** @class */ (function () {
          * Format error
          */
         if (data.version > this.options.ntpDefaults.version) {
+            if (this.options.errorCallback) {
+                this.options.errorCallback("Format error: Expected version " + this.options.ntpDefaults.version + ", got " + data.version);
+            }
             throw new Error("Format error: Expected version " + this.options.ntpDefaults.version + ", got " + data.version);
         }
         /*
@@ -388,6 +399,9 @@ var NtpTimeSync = /** @class */ (function () {
          * synchronized, (2) the server stratum is invalid.
          */
         if (data.leapIndicator === 3 || data.stratum >= this.options.ntpDefaults.maxStratum) {
+            if (this.options.errorCallback) {
+                this.options.errorCallback("Stratum error: Remote clock is unsynchronized");
+            }
             throw new Error("Stratum error: Remote clock is unsynchronized");
         }
         /*
@@ -396,12 +410,18 @@ var NtpTimeSync = /** @class */ (function () {
         var rootDelay = (data.rootDelay.getTime() - this.options.ntpDefaults.referenceDate.getTime()) / 1000;
         var rootDispersion = (data.rootDispersion.getTime() - this.options.ntpDefaults.referenceDate.getTime()) / 1000;
         if (rootDelay / 2 + rootDispersion >= this.options.ntpDefaults.maxDispersion) {
+            if (this.options.errorCallback) {
+                this.options.errorCallback("Distance error: Root distance too large");
+            }
             throw new Error("Distance error: Root distance too large");
         }
         /*
          * Verify origin timestamp
          */
         if (data.originTimestamp.getTime() > new Date().getTime()) {
+            if (this.options.errorCallback) {
+                this.options.errorCallback("Format error: Origin timestamp is from the future");
+            }
             throw new Error("Format error: Origin timestamp is from the future");
         }
     };

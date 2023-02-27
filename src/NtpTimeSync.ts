@@ -18,6 +18,8 @@ export interface NtpTimeSyncConstructorOptions {
   servers: string[];
   sampleCount: number;
   replyTimeout: number;
+  errorCallback: (reason: string) => {} | undefined;
+  launchExceptions: boolean;
   ntpDefaults: {
     port: number;
     version: number;
@@ -49,6 +51,12 @@ export const NtpTimeSyncDefaultOptions = {
 
   // amount of time in milliseconds to wait for an NTP response
   replyTimeout: 3000,
+
+  //False for default callback
+  errorCallback: false,
+
+  // throw Exceptions
+  launchExceptions: true,
 
   // defaults as of RFC5905
   ntpDefaults: {
@@ -171,7 +179,11 @@ export class NtpTimeSync {
     } while (ntpResults.length < numSamples && retry < 3);
 
     if (ntpResults.length === 0) {
-      throw new Error("Connection error: Unable to get any NTP response after " + retry + " retries");
+      if (this.options.errorCallback) {
+        this.options.errorCallback("Connection error: Unable to get any NTP response after " + retry + " retries");
+      }
+      if (this.options.launchExceptions)
+        throw new Error("Connection error: Unable to get any NTP response after " + retry + " retries");
     }
 
     // filter erroneous responses, use valid ones as samples
@@ -401,6 +413,11 @@ export class NtpTimeSync {
      * Format error
      */
     if (data.version > this.options.ntpDefaults.version) {
+      if (this.options.errorCallback) {
+        this.options.errorCallback(
+          "Format error: Expected version " + this.options.ntpDefaults.version + ", got " + data.version
+        );
+      }
       throw new Error("Format error: Expected version " + this.options.ntpDefaults.version + ", got " + data.version);
     }
 
@@ -409,6 +426,9 @@ export class NtpTimeSync {
      * synchronized, (2) the server stratum is invalid.
      */
     if (data.leapIndicator === 3 || data.stratum >= this.options.ntpDefaults.maxStratum) {
+      if (this.options.errorCallback) {
+        this.options.errorCallback("Stratum error: Remote clock is unsynchronized");
+      }
       throw new Error("Stratum error: Remote clock is unsynchronized");
     }
 
@@ -418,6 +438,9 @@ export class NtpTimeSync {
     const rootDelay = (data.rootDelay.getTime() - this.options.ntpDefaults.referenceDate.getTime()) / 1000;
     const rootDispersion = (data.rootDispersion.getTime() - this.options.ntpDefaults.referenceDate.getTime()) / 1000;
     if (rootDelay / 2 + rootDispersion >= this.options.ntpDefaults.maxDispersion) {
+      if (this.options.errorCallback) {
+        this.options.errorCallback("Distance error: Root distance too large");
+      }
       throw new Error("Distance error: Root distance too large");
     }
 
@@ -425,6 +448,9 @@ export class NtpTimeSync {
      * Verify origin timestamp
      */
     if (data.originTimestamp.getTime() > new Date().getTime()) {
+      if (this.options.errorCallback) {
+        this.options.errorCallback("Format error: Origin timestamp is from the future");
+      }
       throw new Error("Format error: Origin timestamp is from the future");
     }
   }

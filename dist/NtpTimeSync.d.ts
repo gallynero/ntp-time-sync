@@ -5,6 +5,8 @@ export interface NtpTimeSyncConstructorOptions {
     servers: string[];
     sampleCount: number;
     replyTimeout: number;
+    errorCallback: (reason: string) => {} | undefined;
+    launchExceptions: boolean;
     ntpDefaults: {
         port: number;
         version: number;
@@ -29,6 +31,8 @@ export declare const NtpTimeSyncDefaultOptions: {
     servers: string[];
     sampleCount: number;
     replyTimeout: number;
+    errorCallback: boolean;
+    launchExceptions: boolean;
     ntpDefaults: {
         port: number;
         version: number;
